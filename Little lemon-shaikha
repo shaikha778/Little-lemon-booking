@@ -1,0 +1,91 @@
+-- Create Database
+CREATE DATABASE LittleLemon;
+USE LittleLemon;
+
+-- Create Tables
+CREATE TABLE Customers (
+    CustomerID INT AUTO_INCREMENT PRIMARY KEY,
+    FullName VARCHAR(100),
+    Email VARCHAR(100) UNIQUE,
+    PhoneNumber VARCHAR(20)
+);
+
+CREATE TABLE Bookings (
+    BookingID INT AUTO_INCREMENT PRIMARY KEY,
+    CustomerID INT,
+    BookingDate DATE,
+    BookingTime TIME,
+    NumberOfGuests INT,
+    Status ENUM('Confirmed', 'Cancelled', 'Pending'),
+    TableNumber INT UNIQUE,
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID) ON DELETE CASCADE
+);
+
+CREATE TABLE Menu (
+    MenuItemID INT AUTO_INCREMENT PRIMARY KEY,
+    ItemName VARCHAR(100),
+    Price DECIMAL(10,2)
+);
+
+CREATE TABLE Orders (
+    OrderID INT AUTO_INCREMENT PRIMARY KEY,
+    BookingID INT,
+    MenuItemID INT,
+    Quantity INT,
+    FOREIGN KEY (BookingID) REFERENCES Bookings(BookingID) ON DELETE CASCADE,
+    FOREIGN KEY (MenuItemID) REFERENCES Menu(MenuItemID) ON DELETE CASCADE
+);
+
+-- ER Diagram Representation (for MySQL Workbench export)
+-- Ensure you use MySQL Workbench to visualize this schema as an ER diagram.
+
+-- Stored Procedure to Get Maximum Quantity Ordered
+DELIMITER //
+CREATE PROCEDURE GetMaxQuantity()
+BEGIN
+    SELECT MAX(Quantity) AS MaxQuantity FROM Orders;
+END //
+DELIMITER ;
+
+-- Stored Procedure to Manage Booking
+DELIMITER //
+CREATE PROCEDURE ManageBooking(IN p_TableNumber INT, IN p_Status ENUM('Confirmed', 'Cancelled', 'Pending'))
+BEGIN
+    DECLARE table_exists INT;
+    
+    SELECT COUNT(*) INTO table_exists FROM Bookings WHERE TableNumber = p_TableNumber;
+    
+    IF table_exists = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Table does not exist.';
+    ELSE
+        UPDATE Bookings SET Status = p_Status WHERE TableNumber = p_TableNumber;
+    END IF;
+END //
+DELIMITER ;
+
+-- Stored Procedure to Update Booking
+DELIMITER //
+CREATE PROCEDURE UpdateBooking(IN p_TableNumber INT, IN p_BookingDate DATE, IN p_BookingTime TIME, IN p_NumberOfGuests INT)
+BEGIN
+    UPDATE Bookings 
+    SET BookingDate = p_BookingDate, BookingTime = p_BookingTime, NumberOfGuests = p_NumberOfGuests 
+    WHERE TableNumber = p_TableNumber;
+END //
+DELIMITER ;
+
+-- Stored Procedure to Add Booking
+DELIMITER //
+CREATE PROCEDURE AddBooking(IN p_CustomerID INT, IN p_TableNumber INT, IN p_BookingDate DATE, IN p_BookingTime TIME, IN p_NumberOfGuests INT)
+BEGIN
+    INSERT INTO Bookings (CustomerID, TableNumber, BookingDate, BookingTime, NumberOfGuests, Status) 
+    VALUES (p_CustomerID, p_TableNumber, p_BookingDate, p_BookingTime, p_NumberOfGuests, 'Pending');
+END //
+DELIMITER ;
+
+-- Stored Procedure to Cancel Booking
+DELIMITER //
+CREATE PROCEDURE CancelBooking(IN p_TableNumber INT)
+BEGIN
+    UPDATE Bookings SET Status = 'Cancelled' WHERE TableNumber = p_TableNumber;
+END //
+DELIMITER ;
